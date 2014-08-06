@@ -1,238 +1,114 @@
-<!-- Licensed under a BSD license. See license.html for license -->
+
+
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
     <title>WebGL - 2D Image</title>
-    <link type="text/css" href="resources/webgl-tutorials.css" rel="stylesheet" />
-    <script src="resources/webgl-utils.js"></script>
-    <script src="resources/composite.js"></script>
-    <script src="resources/localOrder.js"></script>
-    <script>
-      "use strict";
+    <link rel='stylesheet' href='resources/style.css' type='text/css'>
 
-      window.onload = main;
+    <script src="webGLSimpleCinema.js"></script>
+    <script src="ext/core/jquery-1.8.3.min.js"></script>
+    <script type="text/javascript">
+      'use strict';
 
-      function main() {
-        var image = new Image();
-        image.src = "resources/rgb.jpg";  // MUST BE SAME DOMAIN!!!
-        image.onload = function() {
-          render(image);
-        }
-      }
+      var testWebGLSimpleCinema = {},
+          minPhi = 0, maxPhi = 340, minTheta = 15, maxTheta = 165,
+          phiStep = 20, thetaStep = 25, isMouseDown = false,
+          time = "0", phi = "0", theta = "90", currentMousePos,
+          query = "AABBCBDBEBFBGCHCICJCKC";
 
-      function render(image) {
-        // Get A WebGL context
-        var canvas = document.getElementById("canvas");
-        var gl = getWebGLContext(canvas);
-        if (!gl) {
-          return;
+        testWebGLSimpleCinema.main = function() {
+        init();
+
+        updateFields( time, phi, theta );
+
+        testWebGLSimpleCinema.updatePhi = function() {
+          phi = document.getElementById("phi").value;
+          updateFields( time, phi, theta );
         }
 
-        var canvas2D = document.createElement('canvas');
-        var bgCTX = canvas2D.getContext('2d');
-        var singleImageSize = [500,500];
-        var fullImageSize = [500,11000];
-
-
-        // setup GLSL program
-        var program = createProgramFromScripts(gl, ["2d-vertex-shader", "2d-fragment-shader"]);
-        gl.useProgram(program);
-
-        // look up where the vertex data needs to go.
-        var positionLocation = gl.getAttribLocation(program, "a_position");
-        var texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
-        var nbImages = 22;
-
-        // provide texture coordinates for the rectangle.
-        var texCoordBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        0.0,  0.0,
-        1.0,  0.0,
-        0.0,  1.0,
-        0.0,  1.0,
-        1.0,  0.0,
-        1.0,  1.0]), gl.STATIC_DRAW);
-        gl.enableVertexAttribArray(texCoordLocation);
-        gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
-
-        // Create a texture.
-        var texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-
-        // Set the parameters so we can render any size image.
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-
-        //Here we need to load up our pixel buffer and bind that to the texture
-        // instead of the image.
-        bgCTX.drawImage(image, 0, 0);
-
-        var pixelBuffer = bgCTX.getImageData(0, 0, fullImageSize[0], fullImageSize[1]).data,
-        frontBuffer = null, frontPixels = null, pixelIdx = 0, localIdx;
-
-        frontBuffer = bgCTX.getImageData(0, (nbImages - 1) * singleImageSize[1], singleImageSize[0], singleImageSize[1]);
-        frontPixels = frontBuffer.data;
-
-        var count = composite.length;
-        var fullPixelOffset = singleImageSize[0] * singleImageSize[1] * 4;
-
-        for(var i = 0; i < count; ++i) {
-          var order = composite[i];
-          if(order > 0) {
-            pixelIdx += order;
-          } else {
-            var offset = getOrder(order);
-
-            if(offset > -1) {
-              localIdx = 4 * pixelIdx;
-              offset *= fullPixelOffset;
-              offset += localIdx;
-              frontPixels[ localIdx     ] = pixelBuffer[ offset     ];
-              frontPixels[ localIdx + 1 ] = pixelBuffer[ offset + 1 ];
-              frontPixels[ localIdx + 2 ] = pixelBuffer[ offset + 2 ];
-              frontPixels[ localIdx + 3 ] = 255;
-              console.debug("r: "+frontPixels[localIdx]+" g: "+frontPixels[localIdx+1]+" b: "+frontPixels[ localIdx + 2 ]);
-            }
-
-            // Move forward
-            ++pixelIdx;
-          }
+        testWebGLSimpleCinema.updateTheta = function() {
+          theta = document.getElementById("theta").value;
+          console.debug("passing theta: " + theta );
+          updateFields( time, phi, theta );
         }
 
-        var compositeImageBuffer = new Uint8Array(frontPixels);
-
-        // Upload the image into the texture.
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, compositeImageBuffer);
-
-        // lookup uniforms
-        var resolutionLocation = gl.getUniformLocation(program, "u_resolution");
-
-        // set the resolution
-        gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-
-        // Create a buffer for the position of the rectangle corners.
-        var buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-
-        // Set a rectangle the same size as the image.
-        setRectangle(gl, 0, 0, image.width, image.height);
-
-        // Draw the rectangle.
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        function getMousePos(canvas, evt) {
+          var rect = canvas.getBoundingClientRect();
+          return {
+            x: evt.clientX - rect.left,
+            y: evt.clientY - rect.top
+          };
         }
 
-        function getOrder(order)
-        {
-          var offset = -1;
+        var canvas = document.getElementById('glcanvas');
+        canvas.addEventListener('mousedown', function(evt) {
+          isMouseDown = true;
+          currentMousePos = getMousePos(canvas, evt);
+        }, false);
+        canvas.addEventListener('mouseup', function(evt) {
+          isMouseDown = false;
+        }, false);
 
-          switch( order.charAt(0) )
+        canvas.addEventListener('mousemove', function(evt) {
+          if (!isMouseDown) return;
+          var newMousePos = getMousePos(canvas, evt);
+          if (newMousePos.x != currentMousePos.x )
           {
-            case "A":
-              offset = 20;
-              break;
-            case "B":
-              offset = 19;
-              break;
-            case "C":
-              offset = 17;
-              break;
-            case "D":
-              offset = 15;
-              break;
-            case "E":
-              offset = 13;
-              break;
-            case "F":
-              offset = 11;
-              break;
-            case "G":
-              offset = 8;
-              break;
-            case "H":
-              offset = 6;
-              break;
-            case "I":
-              offset = 4;
-              break;
-            case "J":
-              offset = 2;
-              break;
-            case "K":
-              offset = 0;
-              break;
+            changePhi(newMousePos.x > currentMousePos.x);
+            currentMousePos.x = newMousePos.x;
           }
+          if (newMousePos.y != currentMousePos.y )
+          {
+            changeTheta(newMousePos.y > currentMousePos.y);
+            currentMousePos.y = newMousePos.y;
+          }
+          updateFields( time, phi, theta );
+        }, false);
 
-          return offset;
+        function changePhi( next )
+        {
+          if (next)
+          {
+            phi += phiStep;
+          }
+          else
+          {
+            phi -= phiStep;
+          }
+          phi = (phi > maxPhi ? minPhi:phi)
+          phi = (phi < minPhi ? maxPhi:phi)
         }
-
-        function randomInt(range) {
-          return Math.floor(Math.random() * range);
+        function changeTheta( next )
+        {
+          if (next)
+          {
+            theta += thetaStep;
+          }
+          else
+          {
+            theta -= thetaStep;
+          }
+          theta = (theta > maxTheta ? minTheta:theta)
+          theta = (theta < minTheta ? maxTheta:theta)
         }
-
-        function setRectangle(gl, x, y, width, height) {
-          var x1 = x;
-          var x2 = x + width;
-          var y1 = y;
-          var y2 = y + height;
-          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-          x1, y1,
-          x2, y1,
-          x1, y2,
-          x1, y2,
-          x2, y1,
-          x2, y2]), gl.STATIC_DRAW);
-        }
-
-    </script>
-    <!-- vertex shader -->
-    <script id="2d-vertex-shader" type="x-shader/x-vertex">
-      attribute vec2 a_position;
-      attribute vec2 a_texCoord;
-
-      uniform vec2 u_resolution;
-
-      varying vec2 v_texCoord;
-
-      void main() {
-      // convert the rectangle from pixels to 0.0 to 1.0
-      vec2 zeroToOne = a_position / u_resolution;
-
-      // convert from 0->1 to 0->2
-      vec2 zeroToTwo = zeroToOne * 2.0;
-
-      // convert from 0->2 to -1->+1 (clipspace)
-      vec2 clipSpace = zeroToTwo - 1.0;
-
-      gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-
-      // pass the texCoord to the fragment shader
-      // The GPU will interpolate this value between points.
-      v_texCoord = a_texCoord;
       }
-    </script>
-    <!-- fragment shader -->
-    <script id="2d-fragment-shader" type="x-shader/x-fragment">
-      precision mediump float;
 
-      // our texture
-      uniform sampler2D u_image;
 
-      // the texCoords passed in from the vertex shader.
-      varying vec2 v_texCoord;
-
-      void main() {
-      gl_FragColor = texture2D(u_image, v_texCoord);
-      }
     </script>
   </head>
-  <body>
-    <canvas id="canvas" width="500" height="500"></canvas>
+  <body onload="testWebGLSimpleCinema.main()">
+    <canvas id="glcanvas" width="500" height="500"></canvas>
+
+    <div>
+      <!--span class="range-slider-handle"></span>
+      <span class="range-slider-active-segment"></span-->
+      <label for="phi">phi: </label>
+      <input type="range" id="phi" value="0" min="0"
+             max="340" step="20" onmousemove="testWebGLSimpleCinema.updatePhi()" />
+      <label for="theta"> theta: </label>
+      <input type="range" id="theta" value="90" min="15"
+             max="165" step="25" onmousemove="testWebGLSimpleCinema.updateTheta()">
+    </div>
   </body>
 </html>
