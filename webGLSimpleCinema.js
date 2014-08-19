@@ -4,7 +4,9 @@ var gl = 0, time = 0, phi = 90,
 theta = 0, cache = {}, orderMapping = {},
 activeKey, basepath = "data", shaderProgram = null,
 layerOffset = {}, numImages = 0,
-currentPhi = 0, currentTheta = 0, currentTime = 0, textureList = [], imagesProcessed = 0;
+currentPhi = 0, currentTheta = 0, currentTime = 0, textureList = [],
+vertexUnits = 0, fragmentUnits = 0, combinedUnits = 0, imagesProcessed = 0,
+uniformIndexArray = [];
 
 // --------------------------------------------------------------------------
 //
@@ -26,6 +28,12 @@ function initGL() {
   // Clear the color as well as the depth buffer.
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.viewport(0, 0, 500, 500);
+
+  vertexUnits = gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS);
+  fragmentUnits = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+  combinedUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS);
+
+  alert("vertexUnits: " + vertexUnits + "\nfragmentUnits: " + fragmentUnits + "\ncombinedUnits: " + combinedUnits );
 
 };
 
@@ -101,6 +109,10 @@ function init(n) {
   shaders.push( initShader( fragmentShaderSource(), gl.FRAGMENT_SHADER) );
   shaderProgram = createShaderProgram( shaders );
 
+  for (i = 0; i < fragmentUnits; ++i)
+  {
+    uniformIndexArray[i] = i;
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -145,7 +157,7 @@ function draw() {
   var u_image = gl.getUniformLocation(shaderProgram, "u_image[0]");
 
   // set which texture units to render with.
-  gl.uniform1iv(u_image, [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] );  // texture unit 0
+  gl.uniform1iv(u_image, uniformIndexArray );  // texture unit 0
 
 
 
@@ -282,7 +294,7 @@ function fragmentShaderSource() {
     // our texture
 //    'uniform float u_indexScalar;',
 //    'uniform float u_pixelOffset;',
-    'uniform sampler2D u_image[16];',
+    'uniform sampler2D u_image[8];',
 
     // the texCoords passed in from the vertex shader.
     'varying vec2 v_texCoord;',
@@ -294,15 +306,7 @@ function fragmentShaderSource() {
                     'texture2D(u_image[4], v_texCoord)*0.0625 +',
                     'texture2D(u_image[5], v_texCoord)*0.0625 +',
                     'texture2D(u_image[6], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[7], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[8], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[9], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[10], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[11], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[12], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[13], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[14], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[15], v_texCoord)*0.0625;',
+                    'texture2D(u_image[7], v_texCoord)*0.0625;',
     '}' ].join('\n');
 
   return shaderSource;
