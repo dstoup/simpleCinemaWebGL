@@ -11,15 +11,14 @@
     <script type="text/javascript">
       'use strict';
 
+
       var testWebGLSimpleCinema = {},
           minPhi = 0, maxPhi = 340, minTheta = 15, maxTheta = 165,
           phiStep = 20, thetaStep = 25, isMouseDown = false,
-          time = "0", phi = "0", theta = "90", currentMousePos,
-          query = "AABBCBDBEBFBGCHCICJCKC";
+          time = "0", phi = "0", theta = "90", currentMousePos;
 
         testWebGLSimpleCinema.main = function() {
-        init();
-
+        init(22);
         updateFields( time, phi, theta );
 
         testWebGLSimpleCinema.updatePhi = function() {
@@ -93,7 +92,6 @@
           theta = (theta < minTheta ? maxTheta:theta)
         }
       }
-
 
     </script>
   </head>
