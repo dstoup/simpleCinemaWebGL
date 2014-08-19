@@ -294,19 +294,19 @@ function fragmentShaderSource() {
     // our texture
 //    'uniform float u_indexScalar;',
 //    'uniform float u_pixelOffset;',
-    'uniform sampler2D u_image[8];',
+    'uniform sampler2D u_image[',fragmentUnits,
+    '];',
 
     // the texCoords passed in from the vertex shader.
     'varying vec2 v_texCoord;',
     'void main() {',
-    'gl_FragColor = texture2D(u_image[0], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[1], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[2], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[3], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[4], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[5], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[6], v_texCoord)*0.0625 +',
-                    'texture2D(u_image[7], v_texCoord)*0.0625;',
+    'vec4 color;',
+    'for(int i = 0; i < ', fragmentUnits, '; ++i ) {',
+    'color += texture2D(u_image[i], v_texCoord).rgba*0.0625;',
+    '}',
+    'gl_FragColor = color;',
+
+
     '}' ].join('\n');
 
   return shaderSource;
