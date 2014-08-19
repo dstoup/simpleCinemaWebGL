@@ -1,8 +1,14 @@
 #!/bin/bash
 
+data_dir=$1
 
+if [ -ne $data_dir ]
+then
+    echo "Required argument missing: Path to the data directory"
+    exit 1;
+fi
 
-for dir in `find data -type d | sort` ; do
+for dir in `find $data_dir -type d | sort` ; do
     echo $dir
     y=0
     i=0
