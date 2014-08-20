@@ -54,7 +54,7 @@ def createOutputFiles(dirName, objSet) :
     outfileList = dict()
     for o in objectSet :
         trace( 'create file name for: ' + o)
-        fname = 'depthMap' + o + '.json'
+        fname = 'depthImage' + o + '.json'
         fullPath = os.path.join(dirName, fname)
         trace('fullPath: ' + fullPath)
         #Create the file in write mode so we always start clean
