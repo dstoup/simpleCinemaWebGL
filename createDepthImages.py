@@ -13,12 +13,13 @@ error_level = 4
 log_level = info_level
 
 write_debug_map = False
+pixelDelimiter = ','
 
 #Walk the data directory looking for all composite.json files
 def buildDirectoryList(root):
     dirList = []
     for dirName, subdirList, fileList in os.walk(root):
-        info('Found directory: %s' % dirName)
+        debug('Found directory: %s' % dirName)
         for fname in fileList:
             if fname == 'composite.json' :
                 dirList.append(dirName)
@@ -58,6 +59,10 @@ def createOutputFiles(dirName, objSet) :
         trace('fullPath: ' + fullPath)
         #Create the file in write mode so we always start clean
         f = open(fullPath, 'w')
+
+        #Write out the opening json
+        f.write('{\n\"dimensions\": [500, 500],\n')
+        f.write('\"depth-image\": \"')
         f.close()
         outfileList[o] = fullPath
 
@@ -124,6 +129,9 @@ def writeCompositeTokens(line, outfileDict) :
 
         idx = line.find('+')
 
+    #Write out the closing json
+    writeClosingJSON(outfileDict)
+
     trace( 'Wrote out ' + str(tokensWritten) + ' pixels' )
     trace( 'Wrote out ' + str(numTokens) + ' numTokens' )
     trace( 'Wrote out ' + str(plusTokens) + ' plusTokens' )
@@ -142,6 +150,21 @@ def writeCompositeTokens(line, outfileDict) :
         tout.write('\n}\n}')
         tout.close()
 
+
+#Function to write out the closing json on each file
+def writeClosingJSON(outfileDict) :
+    for key in outfileDict :
+        f = outfileDict[key]
+
+        #Seek to the end to get rid of trailing delimeter
+        fout = open(f, 'rb+')
+        fout.seek(-1, os.SEEK_END)
+        fout.truncate()
+
+        fout.write('\"\n}')
+        fout.close()
+
+
 #Write out a 1 for each file, numPixels times
 def writeBackgroundPixel(numPixels, outfileDict):
     trace('Writing out 1 for ' + str(numPixels) + ' pixels')
@@ -150,7 +173,7 @@ def writeBackgroundPixel(numPixels, outfileDict):
         debug('Opening outfile: ' + f)
         fout = open(f, 'a+')
         for p in range(0, int(numPixels)) :
-            fout.write('1.0\n')
+            fout.write('1.0' + pixelDelimiter)
 
         fout.close()
 
@@ -177,7 +200,7 @@ def writeDepthValues(token, outfileDict) :
             outVal = format(outVal, '0.2f')
 
         trace( 'Writing val ' + str(outVal) + ' for object ' + key )
-        fout.write( outVal + '\n')
+        fout.write(outVal + pixelDelimiter)
         fout.close()
 
 #Helper function to abstract logging and easily disable
@@ -210,7 +233,7 @@ if __name__ == '__main__':
 
     #for each directory
     for d in sorted(directoryList) :
-        info( 'Handling directory: ' + d )
+        info( 'Processing directory: ' + d )
         objectSet = buildObjectList(d)
         outfileDict = createOutputFiles(d, objectSet)
         line = parseCompositeFile(d)
