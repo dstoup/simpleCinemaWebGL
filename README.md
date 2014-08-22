@@ -8,3 +8,7 @@ The code assumes that you've split all of your rbg.jpg images into individual 50
 To use that script call:
 
 bash createRGBThumbs.sh /path/to/data/
+
+Converting composite.json files to depth images, use the script, createDepthImages.py. To use the script:
+1) Install pypng, e.g. `pip install pypng`
+2) run with the path to data as an argument `python createDepthImages.py /path/to/data
