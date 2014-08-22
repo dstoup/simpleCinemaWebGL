@@ -2,6 +2,8 @@
 
 import os
 import sys
+import math
+from DepthImage import *
 
 trace_level = 0
 debug_level = 1
@@ -13,7 +15,11 @@ error_level = 4
 log_level = info_level
 
 write_debug_map = False
-pixelDelimiter = ','
+pixelDelimiter = ' '
+
+image_width = 500
+image_height = 500
+current_x_index = 0
 
 #Walk the data directory looking for all composite.json files
 def buildDirectoryList(root):
@@ -26,7 +32,7 @@ def buildDirectoryList(root):
     return dirList
 
 #Figure out the univers of possible objects for this composite.
-#We'll use the query file since it's small to parsse
+#We'll use the query file since it's small to parse
 def buildObjectList(dirName) :
     trace('Bulding object list for: ' + dirName)
     objSet = set()
@@ -40,7 +46,11 @@ def buildObjectList(dirName) :
             #Skip the leading "
             token = line[1:idx]
             trace('token: ' + token)
-            if (token and not token.isspace()) :
+            #if not token, we have the +
+            if not token :
+                trace('We have the +')
+                objSet.add('+')
+            elif (not token.isspace()) :
                 trace( 'Token is not empty' )
                 #Add found tokens to the set of possible
                 for c in token :
@@ -54,17 +64,12 @@ def createOutputFiles(dirName, objSet) :
     outfileList = dict()
     for o in objectSet :
         trace( 'create file name for: ' + o)
-        fname = 'depthImage' + o + '.json'
+        fname = 'depthImage' + o + '.png'
         fullPath = os.path.join(dirName, fname)
         trace('fullPath: ' + fullPath)
+        i = DepthImage(image_width, image_height, fullPath)
         #Create the file in write mode so we always start clean
-        f = open(fullPath, 'w')
-
-        #Write out the opening json
-        f.write('{\n\"dimensions\": [500, 500],\n')
-        f.write('\"depth-image\": \"')
-        f.close()
-        outfileList[o] = fullPath
+        outfileList[o] = i
 
     return outfileList
 
@@ -129,9 +134,6 @@ def writeCompositeTokens(line, outfileDict) :
 
         idx = line.find('+')
 
-    #Write out the closing json
-    writeClosingJSON(outfileDict)
-
     trace( 'Wrote out ' + str(tokensWritten) + ' pixels' )
     trace( 'Wrote out ' + str(numTokens) + ' numTokens' )
     trace( 'Wrote out ' + str(plusTokens) + ' plusTokens' )
@@ -151,57 +153,45 @@ def writeCompositeTokens(line, outfileDict) :
         tout.close()
 
 
-#Function to write out the closing json on each file
-def writeClosingJSON(outfileDict) :
-    for key in outfileDict :
-        f = outfileDict[key]
-
-        #Seek to the end to get rid of trailing delimeter
-        fout = open(f, 'rb+')
-        fout.seek(-1, os.SEEK_END)
-        fout.truncate()
-
-        fout.write('\"\n}')
-        fout.close()
-
-
 #Write out a 1 for each file, numPixels times
 def writeBackgroundPixel(numPixels, outfileDict):
     trace('Writing out 1 for ' + str(numPixels) + ' pixels')
     for key in outfileDict :
         f = outfileDict[key]
-        debug('Opening outfile: ' + f)
-        fout = open(f, 'a+')
-        for p in range(0, int(numPixels)) :
-            fout.write('1.0' + pixelDelimiter)
-
-        fout.close()
+        outValue = 1.0
+        if key == '+' :
+            outValue = 0.0
+            trace('bg pixel for +: %d' % outValue)
+        f.addRowData(outValue, numPixels)
 
 #Write out the depth for all values in token
 def writeDepthValues(token, outfileDict) :
     trace( 'writeDepthValues token: ' + token )
     numTokens = len(outfileDict)
     length = len(token)
+    trace('token len: ' + str(length))
+
     increment = 1/float(numTokens)
     trace('increment ' + str(increment) + ' for ' + str(numTokens) + ' objects')
     for key in outfileDict :
         f = outfileDict[key]
-        fout = open(f, 'a+')
         idx = token.find(key)
         outVal = 1
         if idx != -1:
             outVal = idx*increment
-
-        if outVal == 1 :
-            outVal ='1.0'
-        elif outVal == 0 :
-            outVal = '0.0'
-        else :
-            outVal = format(outVal, '0.2f')
+        elif key == '+':
+            outVal = length*increment
 
         trace( 'Writing val ' + str(outVal) + ' for object ' + key )
-        fout.write(outVal + pixelDelimiter)
-        fout.close()
+        trace('Value: ' + str(outVal) + ' Quantized 8-bit: ' + str(int(math.floor(outVal*255))) + ' Quantized 16-bit: ' + str(int(math.floor(outVal*65535))) )
+
+        f.addRowData(outVal, 1)
+
+def writeImageFiles(outfileDict) :
+    for key in outfileDict :
+        f = outfileDict[key]
+        f.writeFile()
+
 
 #Helper function to abstract logging and easily disable
 def debug(msg) :
@@ -238,3 +228,4 @@ if __name__ == '__main__':
         outfileDict = createOutputFiles(d, objectSet)
         line = parseCompositeFile(d)
         writeCompositeTokens(line, outfileDict)
+        writeImageFiles(outfileDict)
